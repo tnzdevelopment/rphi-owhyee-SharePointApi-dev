@@ -1,0 +1,45 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Post Data to API</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body>
+    <h1>Submit Data</h1>
+    <form id="myForm">
+        <label for="name">Period:</label><br>
+        <input type="text" id="ReportingPeriod" name="name"><br><br>
+        <label for="age">Step Id:</label><br>
+        <input type="number" id="StepId" name="age"><br><br>
+        <button type="submit">Submit</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+        $(document).ready(function () {
+            $('#myForm').submit(function (event) {
+                event.preventDefault(); // Prevent default form submission
+
+                var formData = {
+                    ReportingPeriod: $('#ReportingPeriod').val(),
+                    StepId: parseInt($('#StepId').val())
+                };
+
+                $.ajax({
+                    url: '/api/Home', // Replace with your actual API endpoint
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function (response) {
+                        $('#response').text(response);
+                    },
+                    error: function (xhr, status, error) {
+                        $('#response').text('Error: ' + error);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
