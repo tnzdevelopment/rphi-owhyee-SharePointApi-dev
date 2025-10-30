@@ -55,8 +55,12 @@ namespace SharepointAPI.Controllers
 
         private static void GetSubFoldersFiles(SHP.ClientContext clientContext, SHP.Folder folder, string reportperiod, ref List<AuditReportModel> auditReportModels)
         {
+            
+            string connectionString = ConfigurationManager.ConnectionStrings["MyDatabaseConnection"].ConnectionString;
+
             clientContext.Load(folder, f => f.Name);
             clientContext.ExecuteQuery();
+
 
             string foldername = folder.Name;
 
@@ -65,60 +69,132 @@ namespace SharepointAPI.Controllers
 
             foreach (SHP.Folder subFolder in folder.Folders)
             {
+                List<int> descId = new List<int>();
                 clientContext.Load(subFolder, f => f.Name);
                 clientContext.ExecuteQuery();
                 string workflowname = subFolder.Name;
 
+                string fullpath= "/"+ foldername+"/"+workflowname;
+                fullpath = fullpath.Replace(" ","%20");
+
+                SqlConnection connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                string selectQuery = "SELECT XWorkflowDescriptionID FROM [WorkFlow].[WorkflowFilePath] WHERE SharePointWorkflowFolder like @spflder";
+                SqlCommand command = new SqlCommand(selectQuery, connection);
+                command.Parameters.AddWithValue("@spflder", fullpath);
+
+                SqlDataReader reader2 = command.ExecuteReader();
+                while (reader2.Read())
+                {
+                    int productId = reader2.GetInt32(0); // By index
+                    descId.Add(productId);
+
+                    Console.WriteLine($"Product ID: {productId}");
+                }
+
+                reader2.Close();
+                connection.Close();
+
                 clientContext.Load(subFolder.Files);
                 clientContext.ExecuteQuery();
 
-                foreach (SHP.File file in subFolder.Files)
+                foreach (int descriptionid in descId)
                 {
-                    string filename = file.Name;
-                    //clientContext.Load(file);
-                    SHP.ClientResult<SIO.Stream> stream = file.OpenBinaryStream();
-                    clientContext.ExecuteQuery();
+                    List<WorkflowFileTemplate> lstfiletemplate = new List<WorkflowFileTemplate>();
 
-                    int rowCount = 0;
-                    string fileextension = "";
-                    string error = null;
-                    using (StreamReader reader = new StreamReader(stream.Value))
+                    SqlConnection connectionfile = new SqlConnection(connectionString);
+                    connectionfile.Open();
+
+                    string selectFileQuery = "SELECT [FileFormatID],[ExcelSheetName],[HeaderRowStart] FROM [WorkFlow].[WorkflowFileTemplate] WHERE XWorkflowDescriptionID = @workflowid";
+                    SqlCommand commandfile = new SqlCommand(selectFileQuery, connectionfile);
+                    commandfile.Parameters.AddWithValue("@workflowid", descriptionid);
+
+                    SqlDataReader filereader = commandfile.ExecuteReader();
+                    while (filereader.Read())
                     {
-                        if (filename.Contains("..")) error = "Bad file name.";
-
-                        if (filename.Contains(".xlsx"))
-                        {
-                            ExcelPackage.License.SetNonCommercialOrganization("My Noncommercial organization");
-                            using (ExcelPackage package = new ExcelPackage(stream.Value))
-                            {
-                                ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming first worksheet
-                                rowCount = worksheet.Dimension.End.Row; // Get the last row with data
-                                fileextension = "xlsx";
-                            }
-                        }
-                        else
-                        {
-                            fileextension = filename.Substring(filename.Length - 3);
-                            while (reader.ReadLine() != null)
-                            {
-                                rowCount++;
-                            }
-                        }
-                        // rowCount now holds the number of lines
+                        WorkflowFileTemplate fltmp = new WorkflowFileTemplate();
+                        fltmp.FileFormatId = filereader.GetInt32(0);
+                        fltmp.ExcelSheetName = "";
+                        if(!filereader.IsDBNull(1)) fltmp.ExcelSheetName=filereader.GetString(1);
+                        fltmp.HeaderStart = null;
+                        if(!filereader.IsDBNull(2)) fltmp.HeaderStart = filereader.GetInt32(2);
+                        
+                        lstfiletemplate.Add(fltmp);
                     }
 
-                    int checkcnt = rowCount;
+                    filereader.Close();
+                    connectionfile.Close();
+
+                    foreach (SHP.File file in subFolder.Files)
+                    {
+                        string filename = file.Name;
+                        //clientContext.Load(file);
+                        SHP.ClientResult<SIO.Stream> stream = file.OpenBinaryStream();
+                        clientContext.ExecuteQuery();
+
+                        int rowCount = 0;
+                        string fileextension = "";
+                        string error = null;
+                        using (StreamReader reader = new StreamReader(stream.Value))
+                        {
+                            if (filename.Contains("..")) error = "Bad file name.";
+
+                            if (filename.Contains(".xlsx"))
+                            {
+                                ExcelPackage.License.SetNonCommercialOrganization("My Noncommercial organization");
+                                using (ExcelPackage package = new ExcelPackage(stream.Value))
+                                {
+                                    foreach (WorkflowFileTemplate template in lstfiletemplate)
+                                    {
+                                        if (template.FileFormatId == 1)
+                                        {
+                                            ExcelWorksheet worksheet =  package.Workbook.Worksheets[template.ExcelSheetName];
+                                            if (worksheet != null)
+                                            {
+                                                //ExcelWorksheet worksheet = package.Workbook.Worksheets[0]; // Assuming first worksheet
+                                                rowCount = worksheet.Dimension.End.Row; // Get the last row with data
+                                                int hdstart = 0;
+                                                if (template.HeaderStart != null) hdstart = int.Parse(template.HeaderStart.ToString());
+                                                rowCount = rowCount - hdstart;
+                                                fileextension = "xlsx";
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else if (filename.Contains(".csv"))
+                            {
+                                fileextension = filename.Substring(filename.Length - 3);
+                                while (reader.ReadLine() != null)
+                                {
+                                    rowCount++;
+                                }
+                            }
+                            else
+                            {
+                                fileextension = filename.Substring(filename.Length - 3);
+                                while (reader.ReadLine() != null)
+                                {
+                                    rowCount++;
+                                }
+                            }
+                            // rowCount now holds the number of lines
+                        }
+
+                        int checkcnt = rowCount;
 
 
-                    AuditReportModel armodel = new AuditReportModel();
-                    armodel.ReportingPeriod = reportperiod;
-                    armodel.WorkFlowName = workflowname;
-                    armodel.FileFolder = foldername;
-                    armodel.FileName = filename;
-                    armodel.FileExtension = fileextension;
-                    armodel.RecordsCount = checkcnt.ToString();
-                    armodel.Error = error;
-                    auditReportModels.Add(armodel);
+                        AuditReportModel armodel = new AuditReportModel();
+                        armodel.ReportingPeriod = reportperiod;
+                        armodel.WorkFlowName = workflowname;
+                        armodel.FileFolder = foldername;
+                        armodel.FileName = filename;
+                        armodel.FileExtension = fileextension;
+                        armodel.RecordsCount = checkcnt.ToString();
+                        armodel.Error = error;
+                        auditReportModels.Add(armodel);
+                    }
                 }
             }
         }
@@ -195,10 +271,9 @@ namespace SharepointAPI.Controllers
                 // Iterate through subfolders
                 foreach (SHP.Folder subFolder in testFolder.Folders)
                 {
-                    Console.WriteLine($"  Subfolder: {subFolder.Name}");
-
+//                    Console.WriteLine($"  Subfolder: {subFolder.Name}");
                     GetSubFoldersFiles(clientContext, subFolder, ReportPeriod, ref auditReportModels);
-
+  
                 }
 
                 List<AuditReportModel> armerrorlist = auditReportModels.Where(a => a.Error != null).ToList();

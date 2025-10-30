@@ -164,6 +164,7 @@
     </Compile>
     <Compile Include="Models\AuditReportModel.cs" />
     <Compile Include="Models\PostModel.cs" />
+    <Compile Include="Models\WorkflowFileTemplate.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
