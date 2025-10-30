@@ -238,104 +238,117 @@ namespace SharepointAPI.Controllers
             string returnMessage = "";
             List<AuditReportModel> auditReportModels = new List<AuditReportModel>();
 
-            using (SHP.ClientContext clientContext = SharePointHelper.GetContext(siteUrl, username, password))
+            try
             {
-                // Perform operations on the SharePoint site
-                SHP.Web web = clientContext.Web;
-                clientContext.Load(web);
-                clientContext.ExecuteQuery();
-
-                SHP.List specificList = web.Lists.GetByTitle("Data Secure");
-                clientContext.Load(specificList);
-                clientContext.ExecuteQuery();
-
-                // Get the specific folder
-                //Folder parentFolder = web.GetFolderByServerRelativeUrl(specificList.RootFolder.ServerRelativeUrl + "/Invoices");
-                Guid folderid = Guid.Parse("d95aea5a-9598-2584-76e8-4091bd1e1f6b");
-                SHP.Folder parentFolder = web.GetFolderById(folderid);
-
-                clientContext.Load(parentFolder, f => f.ServerRelativeUrl);
-                clientContext.ExecuteQuery();
-
-                string folderServerRelativePath = parentFolder.ServerRelativeUrl;
-                string folderFullUrl = clientContext.Web.Url + parentFolder.ServerRelativeUrl;
-
-                string pathname = "/" + year + " Invoices/Invoices " + year + " " + fullMonthName;
-                SHP.Folder testFolder = web.GetFolderByServerRelativeUrl(folderServerRelativePath + pathname);
-                clientContext.Load(testFolder, f => f.ServerRelativeUrl);
-                clientContext.ExecuteQuery();
-
-                clientContext.Load(testFolder, f => f.Folders);
-                clientContext.ExecuteQuery();
-
-                // Iterate through subfolders
-                foreach (SHP.Folder subFolder in testFolder.Folders)
+                using (SHP.ClientContext clientContext = SharePointHelper.GetContext(siteUrl, username, password))
                 {
-//                    Console.WriteLine($"  Subfolder: {subFolder.Name}");
-                    GetSubFoldersFiles(clientContext, subFolder, ReportPeriod, ref auditReportModels);
-  
-                }
+                    // Perform operations on the SharePoint site
+                    SHP.Web web = clientContext.Web;
+                    clientContext.Load(web);
+                    clientContext.ExecuteQuery();
 
-                List<AuditReportModel> armerrorlist = auditReportModels.Where(a => a.Error != null).ToList();
+                    SHP.List specificList = web.Lists.GetByTitle("Data Secure");
+                    clientContext.Load(specificList);
+                    clientContext.ExecuteQuery();
 
-                string endDate = DateTime.Now.ToString();
+                    // Get the specific folder
+                    //Folder parentFolder = web.GetFolderByServerRelativeUrl(specificList.RootFolder.ServerRelativeUrl + "/Invoices");
+                    Guid folderid = Guid.Parse("d95aea5a-9598-2584-76e8-4091bd1e1f6b");
+                    SHP.Folder parentFolder = web.GetFolderById(folderid);
 
+                    clientContext.Load(parentFolder, f => f.ServerRelativeUrl);
+                    clientContext.ExecuteQuery();
 
-                if (armerrorlist.Count == 0)
-                {
-                    string mailbody = "Files successfully processed.";
-                    string mailsubject = "Files successfully processed.";
-                    SendEmail(mailbody, mailsubject);
+                    string folderServerRelativePath = parentFolder.ServerRelativeUrl;
+                    string folderFullUrl = clientContext.Web.Url + parentFolder.ServerRelativeUrl;
 
-                    string query = $"INSERT INTO [OwyheeWorkflow].[Audit].[AuditReportFiles] (ReportingPeriod, WorkFlowName, FileFolder, FileName,FileExtension, RecordsCount) VALUES (@ReportingPeriod, @WorkFlowName, @FileFolder, @FileName, @FileExtension, @RecordsCount)";
+                    string pathname = "/" + year + " Invoices/Invoices " + year + " " + fullMonthName;
+                    SHP.Folder testFolder = web.GetFolderByServerRelativeUrl(folderServerRelativePath + pathname);
+                    clientContext.Load(testFolder, f => f.ServerRelativeUrl);
+                    clientContext.ExecuteQuery();
 
-                    foreach (AuditReportModel arm in auditReportModels)
+                    clientContext.Load(testFolder, f => f.Folders);
+                    clientContext.ExecuteQuery();
+
+                    // Iterate through subfolders
+                    foreach (SHP.Folder subFolder in testFolder.Folders)
                     {
-                        using (SqlConnection connection = new SqlConnection(connectionString))
-                        {
-                            using (SqlCommand command = new SqlCommand(query, connection))
-                            {
-                                command.Parameters.AddWithValue("@ReportingPeriod", arm.ReportingPeriod);
-                                command.Parameters.AddWithValue("@WorkFlowName", arm.WorkFlowName);
-                                command.Parameters.AddWithValue("@FileFolder", arm.FileFolder);
-                                command.Parameters.AddWithValue("@FileName", arm.FileName);
-                                command.Parameters.AddWithValue("@FileExtension", arm.FileExtension);
-                                command.Parameters.AddWithValue("@RecordsCount", arm.RecordsCount);
+                        //                    Console.WriteLine($"  Subfolder: {subFolder.Name}");
+                        GetSubFoldersFiles(clientContext, subFolder, ReportPeriod, ref auditReportModels);
 
-                                try
+                    }
+
+                    List<AuditReportModel> armerrorlist = auditReportModels.Where(a => a.Error != null).ToList();
+
+                    string endDate = DateTime.Now.ToString();
+
+
+                    if (armerrorlist.Count == 0)
+                    {
+                        string mailbody = "Files successfully processed.";
+                        string mailsubject = "Files successfully processed.";
+                        SendEmail(mailbody, mailsubject);
+
+                        string query = $"INSERT INTO [OwyheeWorkflow].[Audit].[AuditReportFiles] (ReportingPeriod, WorkFlowName, FileFolder, FileName,FileExtension, RecordsCount) VALUES (@ReportingPeriod, @WorkFlowName, @FileFolder, @FileName, @FileExtension, @RecordsCount)";
+
+                        foreach (AuditReportModel arm in auditReportModels)
+                        {
+                            using (SqlConnection connection = new SqlConnection(connectionString))
+                            {
+                                using (SqlCommand command = new SqlCommand(query, connection))
                                 {
-                                    connection.Open();
-                                    int rowsAffected = command.ExecuteNonQuery();
-                                    connection.Close();
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"Error inserting data: {ex.Message}");
+                                    command.Parameters.AddWithValue("@ReportingPeriod", arm.ReportingPeriod);
+                                    command.Parameters.AddWithValue("@WorkFlowName", arm.WorkFlowName);
+                                    command.Parameters.AddWithValue("@FileFolder", arm.FileFolder);
+                                    command.Parameters.AddWithValue("@FileName", arm.FileName);
+                                    command.Parameters.AddWithValue("@FileExtension", arm.FileExtension);
+                                    command.Parameters.AddWithValue("@RecordsCount", arm.RecordsCount);
+
+                                    try
+                                    {
+                                        connection.Open();
+                                        int rowsAffected = command.ExecuteNonQuery();
+                                        connection.Close();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"Error inserting data: {ex.Message}");
+                                    }
                                 }
                             }
                         }
+
+                        query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Complete', StepEndDateTime = '" + endDate + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
+
+                        UpdateWorkflowStatus(query, connectionString);
                     }
-
-                    query = "UPDATE [OwyheeWorkflow].[WorkFlow].[WorkFlowStepStatus] SET Status = 'Complete', StepEndDateTime = '" + endDate + "' WHERE StepId = '" + WorkFlowId + "'";
-
-                    UpdateWorkflowStatus(query, connectionString);
-                }
-                else
-                {
-                    string mailbody = "";
-                    foreach (AuditReportModel armerror in armerrorlist)
+                    else
                     {
-                        mailbody = mailbody + "Bad file name - " + armerror.FileFolder + " - " + armerror.WorkFlowName + " - " + armerror.FileName + "\r\n";
+                        string mailbody = "";
+                        foreach (AuditReportModel armerror in armerrorlist)
+                        {
+                            mailbody = mailbody + "Bad file name - " + armerror.FileFolder + " - " + armerror.WorkFlowName + " - " + armerror.FileName + "\r\n";
+                        }
+
+                        string mailsubject = "Error in file processing.";
+                        SendEmail(mailbody, mailsubject);
+
+                        string query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Error', StepEndDateTime = '" + endDate + "', Error='" + mailbody + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
+
+                        UpdateWorkflowStatus(query, connectionString);
                     }
-
-                    string mailsubject = "Error in file processing.";
-                    SendEmail(mailbody, mailsubject);
-
-                    string query = "UPDATE [OwyheeWorkflow].[WorkFlow].[WorkFlowStepStatus] SET Status = 'Error', StepEndDateTime = '" + endDate + "', Error='" + mailbody + "' WHERE StepId = '" + WorkFlowId + "'";
-
-                    UpdateWorkflowStatus(query, connectionString);
                 }
             }
+            catch (Exception ex)
+            {
+                string query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Error', StepEndDateTime = '" + DateTime.Now.ToString() + "', Error='" + ex.Message + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
+
+                UpdateWorkflowStatus(query, connectionString);
+
+                returnMessage = ex.Message;
+            }
+
+
             return Ok(returnMessage);
         }
 
