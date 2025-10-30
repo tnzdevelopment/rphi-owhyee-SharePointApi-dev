@@ -318,7 +318,7 @@ namespace SharepointAPI.Controllers
                             }
                         }
 
-                        query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Complete', StepEndDateTime = '" + endDate + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
+                        query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Completed', StepEndDateTime = '" + endDate + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
 
                         UpdateWorkflowStatus(query, connectionString);
                     }
