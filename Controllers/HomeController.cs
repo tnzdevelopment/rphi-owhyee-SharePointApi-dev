@@ -28,7 +28,16 @@ namespace SharepointAPI.Controllers
         {
             MailMessage mail = new MailMessage();
             mail.From = new MailAddress(ConfigurationManager.AppSettings["MailFrom"]);
-            mail.To.Add(ConfigurationManager.AppSettings["Mailto"]);
+            
+            string mailToConfig = ConfigurationManager.AppSettings["Mailto"];
+            if (!string.IsNullOrWhiteSpace(mailToConfig))
+            {
+                var addresses = mailToConfig.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var address in addresses)
+                    mail.To.Add(address.Trim());
+            }
+
             mail.Subject = mailsubject;
             mail.Body = mailbody;
 
@@ -224,7 +233,7 @@ namespace SharepointAPI.Controllers
         [HttpPost]
         [Route("api/Home/PostHome")]
         public IHttpActionResult PostHome(PostModel data)
-        {
+        {           
             string ReportPeriod = data?.ReportingPeriod;
             int WorkFlowId = data.StepId;
             DateTime dt = DateTime.Parse(ReportPeriod);
