@@ -22,7 +22,7 @@ namespace SharepointAPI.Controllers
     {
         private const string siteUrl = "https://340bplus.sharepoint.com/sites/Home";
         private const string username = "TaimurB@pillrhealth.com";
-        private const string password = "Helloworld1!#";
+        private const string password = "kind=act3693!";
 
         private static void SendEmail(string mailbody, string mailsubject)
         {
