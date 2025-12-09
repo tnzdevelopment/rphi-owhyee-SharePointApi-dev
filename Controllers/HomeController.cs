@@ -342,7 +342,7 @@ namespace SharepointAPI.Controllers
                         string mailsubject = "Error in file processing.";
                         SendEmail(mailbody, mailsubject);
 
-                        string query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Error', StepEndDateTime = '" + endDate + "', Error='" + mailbody + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
+                        string query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Error', StepEndDateTime = '" + endDate + "', Description ='" + mailbody + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
 
                         UpdateWorkflowStatus(query, connectionString);
                     }
@@ -350,7 +350,7 @@ namespace SharepointAPI.Controllers
             }
             catch (Exception ex)
             {
-                string query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Error', StepEndDateTime = '" + DateTime.Now.ToString() + "', Error='" + ex.Message + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
+                string query = "UPDATE [OwyheeWorkflow].[Log].[WorkFlowStepStatus] SET Status = 'Error', StepEndDateTime = '" + DateTime.Now.ToString() + "', Description ='" + ex.Message + "' WHERE WorkflowStepStatusId = '" + WorkFlowId + "'";
 
                 UpdateWorkflowStatus(query, connectionString);
 
@@ -472,7 +472,7 @@ namespace SharepointAPI.Controllers
                                  UPDATE [Log].[WorkFlowStepStatus] 
                                  SET 
                                     [Status] = @Status,
-                                    [Error] = @Error,
+                                    [Description] = @Error,
                                     [StepEndDateTime] = @StepEndDateTime
                                  WHERE 
                                     [WorkflowStepStatusId] = @WorkflowStepStatusId";
